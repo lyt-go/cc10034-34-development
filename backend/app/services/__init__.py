@@ -20,6 +20,10 @@ from app.services.consent_registry import ConsentRegistryService
 from app.services.risk_scan import RiskScanService
 from app.services.deploy_policy import DeployPolicyService
 from app.services.anomaly_detect import AnomalyDetectService
+from app.services.budget_alert import BudgetAlertService
+from app.services.budget_txn import BudgetTxnService
+from app.services.verification_receipt import VerificationReceiptService
+from app.services.correction_request import CorrectionRequestService
 
 SERVICES: dict[str, BaseModuleService] = {
     "mask_rule": MaskRuleService(),
@@ -40,6 +44,10 @@ SERVICES: dict[str, BaseModuleService] = {
     "risk_scan": RiskScanService(),
     "deploy_policy": DeployPolicyService(),
     "anomaly_detect": AnomalyDetectService(),
+    "budget_alert": BudgetAlertService(),
+    "budget_txn": BudgetTxnService(),
+    "verification_receipt": VerificationReceiptService(),
+    "correction_request": CorrectionRequestService(),
 }
 
 

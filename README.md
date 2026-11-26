@@ -77,5 +77,42 @@ npm run dev
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
 
+## 预算告警核查（告警 → 预算核查回执 → 纠正受理）
+
+异常检测工作台右上角「告警核查」进入独立的告警核查页（路由 `/alert_check`，
+侧栏「告警核查」同样可达）。值班员把预算告警与真实`预算流水`对照，服务端生成
+**预算核查回执**；在回执上填写核实应退金额并提交**纠正请求**，再到
+**隐私预算页 → 详情/纠正受理**（或核查页的深链）接受/拒绝。
+
+三条服务端铁律（`backend/app/services/alert_review.py`，带进程内结算锁）：
+
+1. **重复上报只计一次扣款**：同`告警指纹/关联凭证号`的多张告警合并为一组，
+   回执给出上报笔数、重复笔数；同凭证的重复扣费流水也按凭证去重。
+2. **数据集隔离**：只有同数据集流水可核销；同金额但异数据集的流水进
+   「排除流水」，绝不计入认定扣费。
+3. **同一原因只退一次**：退款以`业务凭证号 + 退款原因`幂等。原查询入口
+   （差分查询行内「申请退款」或 `/api/alert-check/refunds`）送来的通常是
+   `待定退款`，不动余额；隐私预算页接受纠正时优先把这笔待定退款核准为最终
+   支付流水（`disposition_code=merged_existing_pending`）。若退款已被直接核准，
+   后接受的纠正标记`already_paid`且本次余额变动为 0；若纠正先支付，迟到的同因
+   退款会被记为`重复退款已拦截`。`balance_event` 时间线记录究竟是哪次操作改变了余额。
+
+接口前缀 `/api/alert-check`：
+
+- `GET  /board` 聚合看板；`GET /budgets/{id}/detail` 预算详情（流水/纠正/事件）
+- `POST /scenario` 构造演练：0.30 扣费 + 2 张重复告警 + 异数据集诱饵 + 可选 0.10 待定退款
+- `POST /alerts/{id}/receipt` 生成预算核查回执
+- `POST /receipts/{id}/correction` 提交纠正请求
+- `POST /corrections/{id}/accept|reject` 隐私预算页受理
+- `POST /refunds` 原查询入口退款；`POST /txns/{id}/approve|reject` 直接核准/驳回退款
+
+新资源 `budget_alert / budget_txn / verification_receipt / correction_request`
+也都挂在通用 `/api/{module}` 资源路由下（含中文动作名，如
+`POST /api/correction_request/{id}/actions {"action":"接受纠正"}`）。
+种子数据内置一组完整场景：`CHG-2611-030` 扣费 0.30、两张重复告警
+`BALM-2611-030-A/B`、异数据集诱饵 `TXN-2611-031-C`、迟到的 0.10 待定退款
+`RFD-2611-010-Q`（挂在隐私预算 `PRIV-ALERT-01` / id=4 下）。
+
+
 领域：数据工程
 子方向：数据分析与数据应用
